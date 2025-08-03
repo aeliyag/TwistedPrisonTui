@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Twisted Prison Cube Game</title>
+  <style>
+    body { font-family: Arial; background-color: #111; color: #eee; text-align: center; }
+    .cube-net { display: grid; grid-template-columns: repeat(4, auto); grid-gap: 10px; justify-content: center; }
+    .face { display: grid; grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(3, 30px); gap: 2px; padding: 5px; background: #222; border: 1px solid #666; }
+    .tile { width: 30px; height: 30px; line-height: 30px; text-align: center; background: #333; border: 1px solid #555; }
+    .tile.key { color: gold; }
+    .tile.prisoner { color: lightgreen; }
+    .tile.warden { color: red; }
+    select, button, input { margin: 5px; padding: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Twisted Prison</h1>
+  <div id="cube" class="cube-net"></div>
+  <div>
+    <label for="prisoner">Prisoner:</label>
+    <select id="prisoner">
+      <option value="0">Prisoner 1</option>
+      <option value="1">Prisoner 2</option>
+      <option value="2">Prisoner 3</option>
+    </select>
+    <label for="move1">Step 1:</label>
+    <select id="move1">
+      <option value="up">Up</option>
+      <option value="down">Down</option>
+      <option value="left">Left</option>
+      <option value="right">Right</option>
+    </select>
+    <label for="move2">Step 2:</label>
+    <select id="move2">
+      <option value="up">Up</option>
+      <option value="down">Down</option>
+      <option value="left">Left</option>
+      <option value="right">Right</option>
+    </select>
+    <button onclick="movePrisoner()">Move Prisoner</button>
+    <input id="collectKey" placeholder="Key ID (r/g/b...)" maxlength="1">
+    <button onclick="collectKey()">Collect Key</button>
+    <button onclick="rescuePrisoner()">Rescue Prisoner</button>
+  </div>
+  <div>
+    <label for="warden">Warden:</label>
+    <select id="warden">
+      <option value="0">Warden W</option>
+      <option value="1">Warden w</option>
+    </select>
+    <label for="wardenMove1">Step 1:</label>
+    <select id="wardenMove1">
+      <option value="up">Up</option>
+      <option value="down">Down</option>
+      <option value="left">Left</option>
+      <option value="right">Right</option>
+    </select>
+    <label for="wardenMove2">Step 2:</label>
+    <select id="wardenMove2">
+      <option value="up">Up</option>
+      <option value="down">Down</option>
+      <option value="left">Left</option>
+      <option value="right">Right</option>
+    </select>
+    <button onclick="moveWarden()">Move Warden</button>
+  </div>
+  <script>
+    const faces = ['top', 'left', 'front', 'right', 'bottom', 'back'];
+    const prisoners = [
+      { face: 'top', y: 1, x: 0, jailed: false },
+      { face: 'front', y: 1, x: 1, jailed: false },
+      { face: 'right', y: 1, x: 1, jailed: false }
+    ];
+    const wardens = [
+      { face: 'left', y: 1, x: 1 },
+      { face: 'bottom', y: 1, x: 1 }
+    ];
+    const keys = {
+      top: [{ y: 1, x: 2, id: 'p', collected: false }],
+      right: [{ y: 2, x: 2, id: 'd', collected: false }],
+      front: [{ y: 1, x: 1, id: 'r', collected: false }],
+      left: [{ y: 0, x: 1, id: 'g', collected: false }],
+      back: [{ y: 2, x: 1, id: 'b', collected: false }]
+    };
+    let keyInventory = [];
+
+    function renderCube() {
+      const cubeContainer = document.getElementById('cube');
+      cubeContainer.innerHTML = '';
+      const order = [null, 'top', null, null, 'left', 'front', 'right', 'bottom', null, 'back'];
+
+      for (let i = 0; i < order.length; i++) {
+        const faceName = order[i];
+        const div = document.createElement('div');
+        div.className = 'face';
+        if (faceName) {
+          for (let y = 0; y < 3; y++) {
+            for (let x = 0; x < 3; x++) {
+              const tile = document.createElement('div');
+              tile.className = 'tile';
+              const prisoner = prisoners.find(p => !p.jailed && p.face === faceName && p.y === y && p.x === x);
+              const warden = wardens.find(w => w.face === faceName && w.y === y && w.x === x);
+              const key = (keys[faceName] || []).find(k => k.y === y && k.x === x && !k.collected);
+              if (prisoner) tile.classList.add('prisoner'), tile.textContent = (prisoners.indexOf(prisoner) + 1);
+              else if (warden) tile.classList.add('warden'), tile.textContent = (wardens.indexOf(warden) === 0 ? 'W' : 'w');
+              else if (key) tile.classList.add('key'), tile.textContent = key.id;
+              div.appendChild(tile);
+            }
+          }
+        } else {
+          div.style.visibility = 'hidden';
+        }
+        cubeContainer.appendChild(div);
+      }
+    }
+
+    function moveEntity(entity, dir) {
+      if (dir === 'up' && entity.y > 0) entity.y--;
+      else if (dir === 'down' && entity.y < 2) entity.y++;
+      else if (dir === 'left' && entity.x > 0) entity.x--;
+      else if (dir === 'right' && entity.x < 2) entity.x++;
+    }
+
+    function movePrisoner() {
+      const idx = parseInt(document.getElementById('prisoner').value);
+      const p = prisoners[idx];
+      if (p.jailed) return alert("This prisoner is in jail!");
+      const dir1 = document.getElementById('move1').value;
+      const dir2 = document.getElementById('move2').value;
+      moveEntity(p, dir1);
+      moveEntity(p, dir2);
+      renderCube();
+    }
+
+    function moveWarden() {
+      const idx = parseInt(document.getElementById('warden').value);
+      const w = wardens[idx];
+      const dir1 = document.getElementById('wardenMove1').value;
+      const dir2 = document.getElementById('wardenMove2').value;
+      moveEntity(w, dir1);
+      moveEntity(w, dir2);
+      prisoners.forEach(p => {
+        if (!p.jailed && p.face === w.face && p.y === w.y && p.x === w.x) {
+          if (Math.random() > 0.5) {
+            alert(`Guard wins! Prisoner ${prisoners.indexOf(p)+1} goes to jail.`);
+            p.jailed = true;
+          } else {
+            alert(`Prisoner ${prisoners.indexOf(p)+1} wins combat and escapes.`);
+          }
+        }
+      });
+      renderCube();
+    }
+
+    function collectKey() {
+      const idx = parseInt(document.getElementById('prisoner').value);
+      const p = prisoners[idx];
+      const keyFace = p.face;
+      const keyList = keys[keyFace] || [];
+      const found = keyList.find(k => k.y === p.y && k.x === p.x && !k.collected);
+      if (found) {
+        found.collected = true;
+        keyInventory.push(found.id);
+        alert(`Collected key ${found.id}`);
+      } else {
+        alert("No key found on your tile.");
+      }
+      renderCube();
+    }
+
+    function rescuePrisoner() {
+      if (keyInventory.length === 0) return alert("You need a key to rescue a prisoner!");
+      const jailed = prisoners.find(p => p.jailed);
+      if (jailed) {
+        jailed.jailed = false;
+        alert(`Rescued Prisoner ${prisoners.indexOf(jailed)+1} using key ${keyInventory.pop()}`);
+      } else {
+        alert("No prisoners to rescue.");
+      }
+      renderCube();
+    }
+
+    renderCube();
+  </script>
+</body>
+</html>
